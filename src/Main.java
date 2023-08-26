@@ -1,12 +1,12 @@
 import java.io.IOException;
-import java.util.List;
+
 import core.Cache;
-import utils.Reader;
 
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        Cache cache = Cache.build(args[0], args[1], args[2], args[3], args[4], args[5]);
+        Cache cache = Cache.build("1", "4", "32", "R", "1", "vortex.in.sem.persons.bin");
+        cache.initializeValidAndTag();
         cache.readAddresses();
     }
 }
