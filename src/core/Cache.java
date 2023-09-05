@@ -1,14 +1,13 @@
 package core;
 
 
+import utils.Parser;
+import utils.Reader;
+
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
-
-import utils.Parser;
-import utils.Reader;
-
 
 public class Cache {
 
@@ -45,7 +44,7 @@ public class Cache {
 
     public void readAddresses() throws IOException {
         Reader r = new Reader();
-        r.readFile("resources/addresses/" + this.file);
+        r.readFile("C:\\workspaces\\cache-simulator-aoc2\\src\\resources\\addresses\\" + this.file);
         List<String> addresses = r.getAddresses();
         this.instructionsExecuted = addresses.size();
         divideAddress();
@@ -67,14 +66,15 @@ public class Cache {
         Integer tag = value >> (this.numOffset + this.numIndex);
         Boolean hit = false;
         Boolean missCompulsorio = false;
+
         for (int i = 0; i < this.assoc; i++) {
-            if (this.cacheValid[indice][i] == -1) {
+            if (this.cacheValid[indice][i] != 1) {
                 missCompulsorio = true;
                 this.missCompulsorio++;
                 this.cacheValid[indice][i] = 1;
                 this.cacheTag[indice][i] = tag;
                 break;
-            } else if (cacheValid[indice][i] == 1 && cacheTag[indice][i] == tag) {
+            } else if (cacheTag[indice][i] == tag) {
                 hit = true;
                 this.hits++;
                 break;
@@ -82,8 +82,9 @@ public class Cache {
         }
         if (!hit && !missCompulsorio) {
             this.verifyMiss();
-            int assocReplace = this.trataFalta(indice);
+            int assocReplace = this.trataFalta();
             this.cacheTag[indice][assocReplace] = tag;
+            this.cacheValid[indice][assocReplace] = 1;
         }
     }
 
@@ -99,7 +100,7 @@ public class Cache {
         this.missCapacidade++;
     }
 
-    private int trataFalta(Integer indice){
+    private int trataFalta(){
         Random random = new Random(new Date().getTime());
         int replaceIndex = random.nextInt(this.assoc);
         return replaceIndex;
