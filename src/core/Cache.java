@@ -104,7 +104,7 @@ public class Cache {
     }
 
     private int trataFalta() {
-        Random random = new Random(new Date().getTime());
+        Random random = new Random();
         int replaceIndex = random.nextInt(this.assoc);
         return replaceIndex;
     }
