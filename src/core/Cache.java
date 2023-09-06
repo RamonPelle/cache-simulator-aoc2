@@ -1,12 +1,13 @@
 package core;
 
-
-import java.io.IOException;
-import java.util.List;
-
 import utils.Parser;
 import utils.Reader;
 
+import java.io.IOException;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.Random;
 
 public class Cache {
 
@@ -24,10 +25,11 @@ public class Cache {
     private Integer missCompulsorio = 0;
     private Integer missConflito = 0;
     private Integer missCapacidade = 0;
-    private Integer[][] infoCache;
+    private Integer[][] cacheValid;//x da matriz = nsets // y da matriz = assoc;
+    private Integer[][] cacheTag;//x da matriz = nsets // y da matriz = assoc;
 
     public static Cache build(String nSets, String bSize, String assoc, String substitution, String flag_saida,
-            String file) {
+                              String file) {
         Cache newCache = new Cache();
         newCache.setNsets(Integer.parseInt(nSets));
         newCache.setBsize(Integer.parseInt(bSize));
@@ -35,13 +37,14 @@ public class Cache {
         newCache.setSubstitution(substitution);
         newCache.setFlag_saida(Parser.stringToBoolean(flag_saida));
         newCache.setFile(file);
-        newCache.setInfoCache(buildInfoCache(Integer.parseInt(nSets) * Integer.parseInt(assoc), 2));
+        newCache.setCacheTag(new Integer[newCache.nSets][newCache.assoc]);
+        newCache.setCacheValid(new Integer[newCache.nSets][newCache.assoc]);
         return newCache;
     }
 
     public void readAddresses() throws IOException {
         Reader r = new Reader();
-        r.readFile("resources/addresses/" + this.file);
+        r.readFile("resources\\addresses\\" + this.file);
         List<String> addresses = r.getAddresses();
         this.instructionsExecuted = addresses.size();
         divideAddress();
@@ -58,53 +61,70 @@ public class Cache {
     }
 
     private void verifyCache(String address) {
+
         Integer value = Integer.parseInt(address, 2);
         Integer indice = ((value >> this.numOffset) & ((int) (Math.pow(2, this.numIndex) - 1)));
         Integer tag = value >> (this.numOffset + this.numIndex);
-        if (this.infoCache[indice][0] == 0) {
-            this.missCompulsorio++;
-            this.infoCache[indice][0] = 1;
-            this.infoCache[indice][1] = tag;
-        } else {
-            if (this.infoCache[indice][1] == tag) {
-                this.hits++;
-            } else {
-                verifyMiss();
-                this.infoCache[indice][0] = 1;
-                this.infoCache[indice][1] = tag;
-            }
-        }
-    }
 
-    private void verifyMiss() {
-        boolean missChanged = false;
-        for (int i = 0; i < this.nSets * this.assoc; i++) {
-            if (this.infoCache[i][0] == 0) {
-                this.missConflito++;
-                missChanged = true;
+        Boolean hit = false;
+        Boolean missCompulsorio = false;
+
+        for (int i = 0; i < this.assoc; i++) {
+            if (this.cacheValid[indice][i] != 1) {
+                missCompulsorio = true;
+                this.missCompulsorio++;
+                this.cacheValid[indice][i] = 1;
+                this.cacheTag[indice][i] = tag;
+                break;
+            } else if (Objects.equals(cacheTag[indice][i], tag)) {
+                hit = true;
+                this.hits++;
                 break;
             }
         }
-        if (!missChanged)
-            missCapacidade++;
+        if (!hit && !missCompulsorio) {
+            this.verifyMiss();
+            int assocReplace = this.trataFalta();
+            this.cacheTag[indice][assocReplace] = tag;
+            this.cacheValid[indice][assocReplace] = 1;
+        }
+    }
+
+
+    private void verifyMiss() {
+        for (int i = 0; i < this.nSets; i++) {
+            for (int j = 0; j < this.assoc; j++) {
+                if (this.cacheValid[i][j] == -1) {
+                    this.missConflito++;
+                    return;
+                }
+            }
+        }
+        this.missCapacidade++;
+    }
+
+    private int trataFalta() {
+        Random random = new Random(new Date().getTime());
+        int replaceIndex = random.nextInt(this.assoc);
+        return replaceIndex;
     }
 
     private void printResults() {
         Double[] results = calculateRatios();
-        if(this.flag_saida){
+        if (this.flag_saida) {
             System.out.print(this.instructionsExecuted + " ");
-            for(Double result: results){
+            for (Double result : results) {
                 System.out.print(result + " ");
             }
             System.out.println();
-        }else{
+        } else {
             System.out.println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
             System.out.println("Instruções Executadas: " + this.instructionsExecuted);
-            System.out.println("Hit Ratio: " + results[0]*100 + "%");
-            System.out.println("Miss Ratio: " + results[1]*100 + "%");
-            System.out.println("Misses Compulsórios: " + results[2]*100 + "%");
-            System.out.println("Misses de Conflito: " + results[3]*100 + "%");
-            System.out.println("Misses de Capacidade: " + results[4]*100 + "%");
+            System.out.println("Hit Ratio: " + results[0] * 100 + "%");
+            System.out.println("Miss Ratio: " + results[1] * 100 + "%");
+            System.out.println("Misses Compulsórios: " + results[2] * 100 + "%");
+            System.out.println("Misses de Conflito: " + results[3] * 100 + "%");
+            System.out.println("Misses de Capacidade: " + results[4] * 100 + "%");
             System.out.println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
         }
     }
@@ -113,21 +133,20 @@ public class Cache {
         Double somaMisses = (double) (missCapacidade + missConflito + missCompulsorio);
         Double IE = (double) instructionsExecuted;
         Double hitRatio = ((double) hits / IE);
-        Double missRatio = (somaMisses/ IE);
+        Double missRatio = (somaMisses / IE);
         Double missCompulsorioRatio = ((double) missCompulsorio / somaMisses);
         Double missCapacidadeRatio = ((double) missCapacidade / somaMisses);
         Double missConflitoRatio = ((double) missConflito / somaMisses);
-        return new Double[] {hitRatio, missRatio, missCompulsorioRatio, missCapacidadeRatio, missConflitoRatio};
+        return new Double[]{hitRatio, missRatio, missCompulsorioRatio, missCapacidadeRatio, missConflitoRatio};
     }
 
-    private static Integer[][] buildInfoCache(Integer x, Integer y) {
-        Integer matrixInfoCache[][] = new Integer[x][y];
-        for (int i = 0; i < x; i++) {
-            for (int j = 0; j < y; j++) {
-                matrixInfoCache[i][j] = 0;
+    public void initializeValidAndTag() {
+        for (int i = 0; i < this.nSets; i++) {
+            for (int j = 0; j < this.assoc; j++) {
+                this.cacheTag[i][j] = -1;
+                this.cacheValid[i][j] = -1;
             }
         }
-        return matrixInfoCache;
     }
 
     public Integer getNsets() {
@@ -178,12 +197,100 @@ public class Cache {
         this.file = file;
     }
 
-    public Integer[][] getInfoCache() {
-        return infoCache;
+    public Integer getnSets() {
+        return nSets;
     }
 
-    public void setInfoCache(Integer[][] infoCache) {
-        this.infoCache = infoCache;
+    public void setnSets(Integer nSets) {
+        this.nSets = nSets;
+    }
+
+    public Integer getbSize() {
+        return bSize;
+    }
+
+    public void setbSize(Integer bSize) {
+        this.bSize = bSize;
+    }
+
+    public Integer getNumOffset() {
+        return numOffset;
+    }
+
+    public void setNumOffset(Integer numOffset) {
+        this.numOffset = numOffset;
+    }
+
+    public Integer getNumIndex() {
+        return numIndex;
+    }
+
+    public void setNumIndex(Integer numIndex) {
+        this.numIndex = numIndex;
+    }
+
+    public Integer getNumTag() {
+        return numTag;
+    }
+
+    public void setNumTag(Integer numTag) {
+        this.numTag = numTag;
+    }
+
+    public Integer getInstructionsExecuted() {
+        return instructionsExecuted;
+    }
+
+    public void setInstructionsExecuted(Integer instructionsExecuted) {
+        this.instructionsExecuted = instructionsExecuted;
+    }
+
+    public Integer getHits() {
+        return hits;
+    }
+
+    public void setHits(Integer hits) {
+        this.hits = hits;
+    }
+
+    public Integer getMissCompulsorio() {
+        return missCompulsorio;
+    }
+
+    public void setMissCompulsorio(Integer missCompulsorio) {
+        this.missCompulsorio = missCompulsorio;
+    }
+
+    public Integer getMissConflito() {
+        return missConflito;
+    }
+
+    public void setMissConflito(Integer missConflito) {
+        this.missConflito = missConflito;
+    }
+
+    public Integer getMissCapacidade() {
+        return missCapacidade;
+    }
+
+    public void setMissCapacidade(Integer missCapacidade) {
+        this.missCapacidade = missCapacidade;
+    }
+
+    public Integer[][] getCacheValid() {
+        return cacheValid;
+    }
+
+    public void setCacheValid(Integer[][] cacheValid) {
+        this.cacheValid = cacheValid;
+    }
+
+    public Integer[][] getCacheTag() {
+        return cacheTag;
+    }
+
+    public void setCacheTag(Integer[][] cacheTag) {
+        this.cacheTag = cacheTag;
     }
 
     @Override

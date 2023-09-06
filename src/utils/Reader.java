@@ -8,9 +8,7 @@ import java.util.List;
 
 
 public class Reader {
-
     List<String> addresses = new ArrayList<>();
-
     public List<String> getAddresses() {
         return addresses;
     }
