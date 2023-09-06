@@ -1,12 +1,12 @@
 package core;
 
-
 import utils.Parser;
 import utils.Reader;
 
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 public class Cache {
@@ -29,7 +29,7 @@ public class Cache {
     private Integer[][] cacheTag;//x da matriz = nsets // y da matriz = assoc;
 
     public static Cache build(String nSets, String bSize, String assoc, String substitution, String flag_saida,
-            String file) {
+                              String file) {
         Cache newCache = new Cache();
         newCache.setNsets(Integer.parseInt(nSets));
         newCache.setBsize(Integer.parseInt(bSize));
@@ -44,7 +44,7 @@ public class Cache {
 
     public void readAddresses() throws IOException {
         Reader r = new Reader();
-        r.readFile("C:\\workspaces\\cache-simulator-aoc2\\src\\resources\\addresses\\" + this.file);
+        r.readFile("resources\\addresses\\" + this.file);
         List<String> addresses = r.getAddresses();
         this.instructionsExecuted = addresses.size();
         divideAddress();
@@ -61,9 +61,11 @@ public class Cache {
     }
 
     private void verifyCache(String address) {
+
         Integer value = Integer.parseInt(address, 2);
         Integer indice = ((value >> this.numOffset) & ((int) (Math.pow(2, this.numIndex) - 1)));
         Integer tag = value >> (this.numOffset + this.numIndex);
+
         Boolean hit = false;
         Boolean missCompulsorio = false;
 
@@ -74,7 +76,7 @@ public class Cache {
                 this.cacheValid[indice][i] = 1;
                 this.cacheTag[indice][i] = tag;
                 break;
-            } else if (cacheTag[indice][i] == tag) {
+            } else if (Objects.equals(cacheTag[indice][i], tag)) {
                 hit = true;
                 this.hits++;
                 break;
@@ -88,6 +90,7 @@ public class Cache {
         }
     }
 
+
     private void verifyMiss() {
         for (int i = 0; i < this.nSets; i++) {
             for (int j = 0; j < this.assoc; j++) {
@@ -100,7 +103,7 @@ public class Cache {
         this.missCapacidade++;
     }
 
-    private int trataFalta(){
+    private int trataFalta() {
         Random random = new Random(new Date().getTime());
         int replaceIndex = random.nextInt(this.assoc);
         return replaceIndex;
@@ -134,7 +137,7 @@ public class Cache {
         Double missCompulsorioRatio = ((double) missCompulsorio / somaMisses);
         Double missCapacidadeRatio = ((double) missCapacidade / somaMisses);
         Double missConflitoRatio = ((double) missConflito / somaMisses);
-        return new Double[] { hitRatio, missRatio, missCompulsorioRatio, missCapacidadeRatio, missConflitoRatio };
+        return new Double[]{hitRatio, missRatio, missCompulsorioRatio, missCapacidadeRatio, missConflitoRatio};
     }
 
     public void initializeValidAndTag() {
